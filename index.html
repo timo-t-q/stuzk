@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="sk" data-theme="classic">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stužková: piati proti piatim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@500;700&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script>
+/* ====== NASTAVENIE: sem patria údaje zo Supabase (Settings → API) ====== */
+const SUPABASE_URL = "https://xpkooenqnehepvcktful.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ubzHQp9SnacJ9E9xkbxuow_jGKBYYy9";   // anon / publishable key (NIE service_role)
+</script>
+<style>
+:root{
+  --bg:#060f36;--bg2:#12309c;--panel:#0d2173;--ink:#fff;--mute:#aebaf0;
+  --acc:#ffc93c;--acc-ink:#1c1300;--tile:#1a43c9;--tile2:#0b2283;--line:#ffc93c;
+  --a:#ff5a5f;--b:#35c2ff;--bad:#ff3b30;--ok:#4cd964;
+  --disp:"Anton","Impact","Arial Narrow",sans-serif;
+  --text:"Barlow","Segoe UI",system-ui,sans-serif;--r:.55em;
+}
+[data-theme=cisco]{
+  --bg:#040b11;--bg2:#082231;--panel:#081721;--ink:#d5e8f0;--mute:#6f97ab;
+  --acc:#19a7e0;--acc-ink:#00131c;--tile:#081721;--tile2:#081721;--line:#1c4b62;
+  --a:#7ed957;--b:#ffb020;--bad:#ff4d3d;--ok:#7ed957;
+  --disp:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --text:"JetBrains Mono",ui-monospace,Consolas,monospace;--r:2px;
+}
+*{box-sizing:border-box;margin:0}
+html,body,#app{height:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--text);font-weight:500;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+
+/* prepínač vzhľadu, vpravo hore */
+.themes{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:8px;z-index:60;display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg);font-size:13px}
+.themes button{padding:7px 11px;color:var(--mute)}
+.themes button.on{background:var(--acc);color:var(--acc-ink);font-weight:700}
+
+/* úvod */
+.home{min-height:100%;max-width:30rem;margin:auto;padding:4.5rem 1.2rem 2rem;display:flex;flex-direction:column;gap:.8rem}
+.home h1{font-family:var(--disp);font-weight:400;font-size:2.6rem;line-height:1.05;color:var(--acc)}
+.home p{color:var(--mute);line-height:1.45}
+.home .role{display:block;text-align:left;padding:1rem 1.1rem;border-radius:var(--r);background:var(--panel);border:1px solid var(--line)}
+.home .role b{display:block;font-family:var(--disp);font-weight:400;font-size:1.5rem}
+.home .role span{color:var(--mute);font-size:.92rem}
+.home .role.a b{color:var(--a)}.home .role.b b{color:var(--b)}
+.note{font-size:.88rem;padding:.7rem .9rem;border-radius:var(--r);border:1px dashed var(--line);color:var(--mute)}
+
+/* ===== TELKA ===== */
+.tv{height:100%;overflow:hidden;display:grid;gap:1em 1.4em;padding:.8em 1.4em 1.2em;font-size:min(1.5vw,2.7vh);
+  grid-template:"bar bar bar" auto "a main b" 1fr / 11.5em 1fr 11.5em;
+  background:radial-gradient(ellipse at 50% -10%,var(--bg2),var(--bg) 72%)}
+.bar{grid-area:bar;display:flex;gap:1.2em;align-items:center;color:var(--mute);min-height:38px;padding-right:150px}
+.bar button{border:1px solid var(--line);border-radius:var(--r);padding:.25em .7em;font-size:13px}
+.dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;background:var(--bad);margin-right:.4em}
+.dot.on{background:var(--ok)}.dot.demo{background:var(--acc)}
+.team{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;text-align:center;
+  border-radius:calc(var(--r)*2);border:.22em solid var(--line);background:linear-gradient(var(--panel),var(--bg));padding:1em .6em;transition:box-shadow .2s}
+.team.a{grid-area:a;--c:var(--a)}.team.b{grid-area:b;--c:var(--b)}
+.tname{font-family:var(--disp);font-size:1.7em;line-height:1.1;color:var(--c);overflow-wrap:anywhere}
+.score{font-family:var(--disp);font-size:5em;line-height:1}
+.team.buzzed{border-color:var(--c);box-shadow:0 0 0 .3em var(--c),0 0 5em var(--c);animation:pulse .5s 4 alternate}
+.team.won .score{color:var(--acc)}
+@keyframes pulse{to{box-shadow:0 0 0 .6em var(--c),0 0 8em var(--c)}}
+.tv main{grid-area:main;display:flex;flex-direction:column;gap:.8em;min-height:0;min-width:0}
+.question{font-family:var(--disp);font-size:2.3em;line-height:1.15;text-align:center;min-height:2.4em;display:flex;align-items:center;justify-content:center;text-wrap:balance}
+.bank{align-self:center;display:flex;align-items:baseline;gap:.5em;padding:.1em 1.1em;border-radius:var(--r);background:var(--acc);color:var(--acc-ink)}
+.bank span{font-weight:700}.bank b{font-family:var(--disp);font-weight:400;font-size:2.6em;line-height:1.15}.bank em{font-style:normal;font-weight:700}
+.frame{flex:1;min-height:0;padding:.9em;border-radius:calc(var(--r)*2);
+  background:radial-gradient(circle,#fff3c4 0 .16em,#ffc93c .17em .24em,transparent .27em) 0 0/.9em .9em,#3b2a00}
+.board{list-style:none;padding:.6em;height:100%;display:grid;gap:.5em;grid-auto-flow:column;
+  grid-template-columns:1fr 1fr;grid-template-rows:repeat(var(--rows),1fr);background:var(--bg);border-radius:var(--r)}
+.board.one{grid-template-columns:1fr}
+.tile{display:flex;align-items:center;gap:.45em;padding:0 .5em;min-height:2.2em;border-radius:var(--r);
+  background:linear-gradient(var(--tile),var(--tile2));border:.12em solid var(--line);font-family:var(--disp);font-size:1.4em;overflow:hidden}
+.tile .num{flex:none;min-width:1.5em;height:1.5em;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink)}
+.tile:not(.on){justify-content:center}
+.tile .txt{flex:1;min-width:0;line-height:1.05;overflow-wrap:anywhere}
+.tile .pts{flex:none;min-width:1.8em;text-align:center;padding:.05em .3em;background:var(--bg);border-radius:var(--r);color:var(--acc)}
+.tile.fresh{animation:flip .5s}
+@keyframes flip{from{transform:rotateX(90deg)}to{transform:none}}
+.strikes{display:flex;justify-content:center;gap:.6em;font-size:2.2em;line-height:1}
+.strikes span{opacity:.18}.strikes .on{opacity:1;color:var(--bad)}
+.flash{position:fixed;inset:0;z-index:40;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:0 4vw;background:#000b;animation:pop .25s}
+.flash span{font-size:min(28vw,60vh);line-height:1;font-weight:800;color:var(--bad);text-shadow:0 0 .1em #000}
+.flash p{flex-basis:100%;text-align:center;font:800 min(3vw,5vh) var(--text);color:var(--bad)}
+@keyframes pop{from{transform:scale(1.5);opacity:0}}
+.banner{position:fixed;left:0;right:0;top:38%;z-index:39;padding:.5em 1em;text-align:center;font:400 min(6vw,11vh)/1.1 var(--disp);color:#000;animation:pop .25s}
+.banner.a{background:var(--a)}.banner.b{background:var(--b)}
+.bar .snd{background:var(--acc);color:var(--acc-ink);font-weight:700;border-color:var(--acc)}
+.empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--mute);font-size:1.6em;padding:2em}
+
+/* Cisco verzia telky */
+[data-theme=cisco] .tv{background:linear-gradient(#0000 0 96%,#19a7e010 96%) 0 0/100% 1.6em,var(--bg)}
+[data-theme=cisco] .question{justify-content:flex-start;text-align:left;font-weight:800;font-size:1.9em}
+[data-theme=cisco] .question::after{content:"";width:.6em;height:1.1em;margin-left:.2em;background:var(--acc);animation:blink 1s steps(1) infinite}
+.prompt{color:var(--acc);margin-right:.5em;flex:none}
+[data-theme=cisco] .question span:last-child{flex:0 1 auto}
+[data-theme=cisco] .question{align-items:baseline;flex-wrap:nowrap;text-wrap:wrap}
+@keyframes blink{50%{opacity:0}}
+[data-theme=cisco] .bank{align-self:flex-start;background:none;color:var(--ink);border:1px solid var(--line)}
+[data-theme=cisco] .bank b{color:var(--acc);font-weight:800}
+[data-theme=cisco] .frame{background:none;padding:0;border:1px solid var(--line)}
+[data-theme=cisco] .tile{font-size:1.15em;font-weight:500;border:0;border-bottom:1px solid var(--line);justify-content:flex-start}
+[data-theme=cisco] .tile .num{background:none;color:var(--acc);border-radius:0;min-width:4em;height:auto;display:block}
+[data-theme=cisco] .tile .hid{color:var(--mute)}
+[data-theme=cisco] .tile .pts{background:none;font-weight:800}
+.led{flex:none;width:.7em;height:.7em;background:#3a1512;box-shadow:inset 0 0 0 1px #0008}
+.tile.on .led{background:var(--ok);box-shadow:0 0 .6em var(--ok)}
+[data-theme=cisco] .team{border-width:1px;background:var(--panel)}
+[data-theme=cisco] .tname{font-weight:800;font-size:1.5em}[data-theme=cisco] .score{font-weight:800;font-size:5em}
+.ports{display:grid;grid-template-columns:repeat(4,1.3em);gap:.3em;margin-top:.6em}
+.ports i{height:.9em;background:#0c2a1a;border:1px solid var(--line)}
+.ports i:nth-child(3n+1){background:var(--ok);animation:blink 1.3s steps(1) infinite}
+.ports i:nth-child(4n+2){background:var(--ok);animation:blink .7s steps(1) infinite .3s}
+.team.buzzed .ports i{background:var(--c);animation:blink .2s steps(1) infinite}
+.tstat{color:var(--mute);font-size:.9em}.team.buzzed .tstat{color:var(--c)}
+[data-theme=cisco] .banner{font-weight:800;font-size:min(3.4vw,6vh)}
+
+@media (max-aspect-ratio:1/1){
+  .tv{height:auto;min-height:100%;overflow:visible;font-size:3.1vw;grid-template:"bar bar" auto "a b" auto "main main" 1fr / 1fr 1fr}
+  .team{padding:.5em}.score{font-size:3.4em}[data-theme=cisco] .score{font-size:3em}
+  .board{grid-template-columns:1fr;grid-auto-flow:row;grid-template-rows:none}
+  .ports,.tstat{display:none}
+}
+
+/* ===== BZUČIAK ===== */
+.buz{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;padding:3.5rem 1rem 1.5rem;user-select:none;-webkit-user-select:none}
+.buz.a{--c:var(--a)}.buz.b{--c:var(--b)}
+.bname{font-family:var(--disp);font-size:2rem;color:var(--c);text-align:center}
+.big{width:min(80vw,58vh);aspect-ratio:1;border-radius:50%;background:var(--c);color:#000;font-family:var(--disp);font-size:clamp(1.5rem,7vw,2.6rem);line-height:1.1;padding:1rem;
+  box-shadow:0 .8rem 0 #0007,inset 0 -1rem 2rem #0003,0 0 0 .5rem var(--bg),0 0 0 .7rem var(--c)}
+[data-theme=cisco] .big{border-radius:10px;font-weight:800}
+.buz.armed .big:active{transform:translateY(.5rem);box-shadow:0 .3rem 0 #0007,0 0 0 .5rem var(--bg),0 0 0 .7rem var(--c)}
+.buz.locked .big{filter:grayscale(.85) brightness(.45)}
+.buz.lost .big{opacity:.3}
+.buz.won{animation:wonbg .35s 6 alternate}
+@keyframes wonbg{to{background:var(--c)}}
+.buz small{color:var(--mute)}
+.back{color:var(--mute);text-decoration:underline;font-size:.9rem;padding:.5rem}
+
+/* ===== MODERÁTOR ===== */
+.mod{max-width:34rem;margin:auto;padding:3.4rem .8rem 3rem;display:flex;flex-direction:column;gap:.8rem}
+.tabs{display:flex;gap:.4rem}
+.tabs button{flex:1;padding:.7rem .3rem;border-radius:var(--r);border:1px solid var(--line);color:var(--mute)}
+.tabs button.on{background:var(--acc);color:var(--acc-ink);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:.8rem;display:flex;flex-direction:column;gap:.6rem}
+.card h2{font:700 1rem var(--text);color:var(--mute)}
+.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.row>.grow{flex:1}
+.btn{min-height:46px;padding:.5rem .9rem;border-radius:var(--r);border:1px solid var(--line);background:var(--bg);font-weight:700;text-align:center}
+.btn.pri{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.btn.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.ta{border-color:var(--a);color:var(--a)}.btn.tb{border-color:var(--b);color:var(--b)}
+.qtext{font-size:1.15rem;font-weight:700;line-height:1.3}
+.ans{display:flex;justify-content:space-between;gap:.6rem;width:100%;text-align:left}
+.ans.on{background:var(--ok);color:#00210a;border-color:var(--ok)}
+.status{font-weight:700}.status.a{color:var(--a)}.status.b{color:var(--b)}
+.sc{font-family:var(--disp);font-size:1.6rem}
+.mod input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:.55rem .6rem;min-width:0;width:100%}
+.mod input.p{width:4.2rem;flex:none;text-align:center}
+.mod label{display:flex;flex-direction:column;gap:.25rem;color:var(--mute);font-size:.9rem;flex:1;min-width:8rem}
+.x{flex:none;width:42px;height:42px;border-radius:var(--r);border:1px solid var(--line);color:var(--bad);font-weight:800}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--bg);padding:.6rem 1rem;border-radius:var(--r);font-weight:700;max-width:90vw}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ---------- vzorové otázky (body sú vymyslené, nahraďte vlastným prieskumom) ---------- */
+const SAMPLE=[
+ {q:"Čo študent najčastejšie povie, keď príde neskoro na hodinu?",answers:[{t:"Zaspal som",p:34},{t:"Meškal autobus",p:27},{t:"Bol som u lekára",p:15},{t:"Bola zápcha",p:10},{t:"Nezvonil mi budík",p:8},{t:"Zabudol som",p:6}]},
+ {q:"Čo rodičia najčastejšie hovoria ráno pred školou?",answers:[{t:"Vstávaj!",p:38},{t:"Máš desiatu?",p:22},{t:"Obleč sa teplo",p:16},{t:"Zmeškáš autobus",p:13},{t:"Uč sa",p:7},{t:"Odlož mobil",p:4}]},
+ {q:"Čo nesmie chýbať na stužkovej?",answers:[{t:"Stužky",p:30},{t:"Hudba",p:22},{t:"Jedlo",p:17},{t:"Tanec",p:14},{t:"Príhovor",p:9},{t:"Fotograf",p:8}]},
+ {q:"Na čo sa študenti vyhovárajú, keď nemajú úlohu?",answers:[{t:"Zabudol som zošit doma",p:35},{t:"Nevedel som o nej",p:24},{t:"Nebol som v škole",p:17},{t:"Nešiel internet",p:12},{t:"Zjedol ju pes",p:7},{t:"Bol som chorý",p:5}]},
+ {q:"Čo robí študent namiesto učenia na maturitu?",answers:[{t:"Je na mobile",p:36},{t:"Spí",p:21},{t:"Pozerá seriály",p:16},{t:"Hrá hry",p:13},{t:"Upratuje izbu",p:8},{t:"Je",p:6}]},
+ {q:"Čo si rodičia myslia, že ich dieťa robí na počítači?",answers:[{t:"Učí sa",p:29},{t:"Hrá hry",p:27},{t:"Je na sociálnych sieťach",p:18},{t:"Pozerá videá",p:14},{t:"Programuje",p:12}]}
+];
+const DEF={v:0,theme:"classic",names:{a:"Tím A",b:"Tím B"},scores:{a:0,b:0},qi:0,revealed:[],strikes:0,mult:1,awarded:null,awardedPts:0,showQ:true,fx:{n:0,t:"",k:0}};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const norm=s=>{const d=clone(DEF),x=s||{};return {...d,...x,names:{...d.names,...x.names},scores:{...d.scores,...x.scores},fx:{...d.fx,...x.fx},revealed:Array.isArray(x.revealed)?x.revealed:[]}};
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- stav ---------- */
+let row={state:clone(DEF),questions:[],buzz_armed:false,buzz_winner:null};
+let ready=false,online=false,pending=0,gen=0;
+const ui={tab:"game",draft:null,fresh:new Set(),strike:0,buzz:null,toast:"",audio:false};
+const VIEWS={"#tv":"tv","#mod":"mod","#a":"a","#b":"b"};
+let view=VIEWS[location.hash]||"home";
+const S=()=>norm(row.state);
+const QS=()=>Array.isArray(row.questions)?row.questions:[];
+const Q=()=>{const q=QS();return q.length?q[Math.min(S().qi,q.length-1)]:null};
+const QI=()=>Math.min(S().qi,Math.max(0,QS().length-1));
+const bank=s=>{const q=Q();if(!q||s.awarded)return 0;return s.revealed.reduce((n,i)=>n+(+q.answers[i]?.p||0),0)*s.mult};
+
+function emit(prev){ if(ready) effects(prev); render(); }
+function apply(inc){
+  const prev=row,next={...row};
+  if(inc.state && (inc.state.v||0)>=(row.state.v||0)) next.state=inc.state;
+  if(Array.isArray(inc.questions)) next.questions=inc.questions;
+  if("buzz_armed" in inc) next.buzz_armed=!!inc.buzz_armed;
+  if("buzz_winner" in inc) next.buzz_winner=inc.buzz_winner||null;
+  row=next; emit(prev);
+}
+function patch(obj){ gen++; const prev=row; row={...row,...obj}; emit(prev); backend.write(obj); }
+function setState(fn,extra){ const s=S(); fn(s); s.v=(s.v||0)+1; patch({state:s,...(extra||{})}); }
+function toast(m){ ui.toast=m; render(); clearTimeout(ui.t3); ui.t3=setTimeout(()=>{ui.toast="";render()},3000); }
+
+/* ---------- pripojenie: Supabase, alebo demo bez internetu ---------- */
+const CONFIGURED=!!(SUPABASE_URL&&SUPABASE_KEY);
+const DEMO=!CONFIGURED;
+let backend;
+if(CONFIGURED && window.supabase){
+  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  let chain=Promise.resolve();
+  const load=async()=>{
+    const g=gen;
+    const {data,error}=await sb.from("game").select("*").eq("id",1).maybeSingle();
+    if(error||!data){ if(!ready) toast(error?"Nepodarilo sa načítať hru zo Supabase":"V tabuľke game chýba riadok s id 1"); return; }
+    if(g!==gen||pending>0) return;
+    apply(data); ready=true;
+  };
+  backend={
+    write(obj){ pending++; chain=chain.then(()=>sb.from("game").update(obj).eq("id",1)).then(r=>{ if(r.error) throw r.error; })
+      .catch(()=>toast("Zmena sa neuložila, skontroluj internet")).finally(()=>{pending--}); },
+    async buzz(t){ const {data}=await sb.from("game").update({buzz_winner:t}).eq("id",1).eq("buzz_armed",true).is("buzz_winner",null).select("buzz_winner");
+      if(data&&data.length) apply({buzz_winner:t}); }
+  };
+  sb.channel("game").on("postgres_changes",{event:"UPDATE",schema:"public",table:"game"},p=>{ if(pending===0&&ready) apply(p.new||{}); })
+    .subscribe(st=>{ online=st==="SUBSCRIBED"; if(online) load(); render(); });
+  load(); setInterval(load,4000);
+}else{
+  let bc=null; try{bc=new BroadcastChannel("pp-demo")}catch(e){}
+  try{const saved=JSON.parse(localStorage.getItem("pp-demo")||"null"); if(saved&&saved.state) row=saved;}catch(e){}
+  if(!QS().length) row.questions=clone(SAMPLE);
+  const save=()=>{ try{localStorage.setItem("pp-demo",JSON.stringify(row))}catch(e){} };
+  if(bc) bc.onmessage=e=>{ const prev=row; row=e.data; emit(prev); };
+  backend={ write(){ save(); if(bc) bc.postMessage(row); }, buzz(t){ if(row.buzz_armed&&!row.buzz_winner) patch({buzz_winner:t}); } };
+  ready=true;
+}
+
+/* ---------- zvuky (len telka) ---------- */
+let ac=null;
+function tone(f,t0,d,type,g){ const o=ac.createOscillator(),G=ac.createGain(),t=ac.currentTime+t0; o.type=type||"sine"; o.frequency.value=f;
+  G.gain.setValueAtTime(g||.2,t); G.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(G).connect(ac.destination); o.start(t); o.stop(t+d+.05); }
+const sfx={ ding(){tone(880,0,.2);tone(1320,.13,.6)}, strike(){tone(140,0,.8,"sawtooth",.35);tone(147,0,.8,"square",.18)},
+  buzz(){tone(520,0,.13,"square",.22);tone(780,.14,.4,"square",.22)}, win(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,"triangle",.25))} };
+const play=n=>{ if(ac&&view==="tv") try{sfx[n]()}catch(e){} };
+
+function effects(p){
+  const a=norm(p.state),b=S();
+  if(view==="tv"){
+    if(a.qi===b.qi){ const fresh=b.revealed.filter(i=>!a.revealed.includes(i));
+      if(fresh.length){ fresh.forEach(i=>ui.fresh.add(i)); play("ding"); setTimeout(()=>fresh.forEach(i=>ui.fresh.delete(i)),700); } }
+    if(b.fx.n!==a.fx.n&&b.fx.t==="strike"){ ui.strike=b.fx.k||1; play("strike"); clearTimeout(ui.t1); ui.t1=setTimeout(()=>{ui.strike=0;render()},1500); }
+    if(!p.buzz_winner&&row.buzz_winner){ ui.buzz=row.buzz_winner; play("buzz"); clearTimeout(ui.t2); ui.t2=setTimeout(()=>{ui.buzz=null;render()},2300); }
+    if(!a.awarded&&b.awarded) play("win");
+  }
+  if((view==="a"||view==="b")&&!p.buzz_winner&&row.buzz_winner===view){ try{navigator.vibrate&&navigator.vibrate(250)}catch(e){} }
+}
+
+/* ---------- vykreslenie ---------- */
+const app=document.getElementById("app");
+const conn=()=>DEMO?`<span><i class="dot demo"></i>Demo režim</span>`:`<span><i class="dot ${online?"on":""}"></i>${online?"Pripojené":"Odpojené"}</span>`;
+const themes=s=>`<div class="themes" role="group" aria-label="Vzhľad"><button data-act="theme" data-v="classic" class="${s.theme!=="cisco"?"on":""}">Klasika</button><button data-act="theme" data-v="cisco" class="${s.theme==="cisco"?"on":""}">Cisco</button></div>`;
+
+function homeHTML(){
+  return `<div class="home"><h1>Piati proti piatim</h1>
+  <p>Vyber, čo bude toto zariadenie. Na každom telefóne aj na telke otvor ten istý odkaz.</p>
+  <button class="role" data-go="tv"><b>Telka</b><span>Otázka, tabuľa s odpoveďami a skóre pre divákov</span></button>
+  <button class="role" data-go="mod"><b>Moderátor</b><span>Odkrýva odpovede, dáva krížiky a pripisuje body</span></button>
+  <button class="role a" data-go="a"><b>Bzučiak: ${esc(S().names.a)}</b><span>Jedno veľké tlačidlo</span></button>
+  <button class="role b" data-go="b"><b>Bzučiak: ${esc(S().names.b)}</b><span>Jedno veľké tlačidlo</span></button>
+  ${DEMO?`<p class="note">Demo režim: Supabase ešte nie je nastavený, takže sa hra synchronizuje len medzi kartami v tomto prehliadači. Všetko sa dá vyskúšať, bzučiak stlačíš aj z moderátora.</p>`:`<p class="note">${conn()}</p>`}
+  </div>`;
+}
+
+function tvHTML(){
+  const s=S(),q=Q(),cis=s.theme==="cisco",n=QS().length,rev=new Set(s.revealed);
+  const team=t=>`<aside class="team ${t} ${row.buzz_winner===t?"buzzed":""} ${s.awarded===t?"won":""}"><div class="tname">${esc(s.names[t])}</div><div class="score">${s.scores[t]}</div>${cis?`<div class="ports">${"<i></i>".repeat(8)}</div><div class="tstat">${row.buzz_winner===t?"line protocol is up":"notconnect"}</div>`:""}</aside>`;
+  let main;
+  if(!q){ main=`<div class="empty">Zatiaľ tu nie sú žiadne otázky. Moderátor ich pridá v záložke Otázky.</div>`; }
+  else{
+    const len=q.answers.length;
+    const tiles=q.answers.map((a,i)=>{ const on=rev.has(i);
+      return `<li class="tile ${on?"on":""} ${ui.fresh.has(i)?"fresh":""}"><span class="num">${cis?"Gi0/"+(i+1):i+1}</span>${on?`<span class="txt">${esc(a.t)}</span><span class="pts">${esc(a.p)}</span>`:(cis?`<span class="txt hid">down</span>`:"")}${cis?`<i class="led"></i>`:""}</li>`; }).join("");
+    const qt=s.showQ?esc(q.q):(cis?"********":"Otázka príde o chvíľu");
+    main=`<div class="question">${cis?`<span class="prompt">stuzkova#</span>`:""}<span>${qt}</span></div>
+      <div class="bank"><span>${cis?"bank":"Banka"}</span><b>${bank(s)}</b>${s.mult>1?`<em>×${s.mult}</em>`:""}</div>
+      <div class="frame"><ol class="board ${len<=4?"one":""}" style="--rows:${len<=4?len:Math.ceil(len/2)}">${tiles}</ol></div>
+      <div class="strikes" aria-label="Chyby: ${s.strikes} z 3">${[0,1,2].map(i=>`<span class="${i<s.strikes?"on":""}">✕</span>`).join("")}</div>`;
+  }
+  const bn=ui.buzz?esc(s.names[ui.buzz]):"";
+  return `<div class="tv">
+    <header class="bar">${n?`<span>Otázka ${QI()+1} z ${n}</span>`:""}${conn()}${ui.audio?"":`<button class="snd" data-act="sound">Zapnúť zvuk</button>`}<button data-act="full">Celá obrazovka</button><button data-go="home">Zmeniť zariadenie</button></header>
+    ${team("a")}<main>${main}</main>${team("b")}
+    ${ui.buzz?`<div class="banner ${ui.buzz}">${cis?`%LINK-3-UPDOWN: ${bn}, changed state to up`:`Prvý bzučiak: ${bn}`}</div>`:""}
+    ${ui.strike?`<div class="flash">${"<span>✕</span>".repeat(ui.strike)}${cis?"<p>% Invalid input detected</p>":""}</div>`:""}
+  </div>`;
+}
+
+function buzHTML(t){
+  const s=S(),w=row.buzz_winner,st=w?(w===t?"won":"lost"):(row.buzz_armed?"armed":"locked");
+  const msg={won:"Ste prví!",lost:"Prvý bol súper",armed:"Stlač!",locked:"Čakaj na moderátora"}[st];
+  return `<div class="buz ${t} ${st}"><div class="bname">${esc(s.names[t])}</div>
+    <button class="big" data-buzz="${t}" aria-live="polite">${msg}</button>
+    <small>${conn()}</small><button class="back" data-go="home">Zmeniť zariadenie</button></div>`;
+}
+
+function modHTML(){
+  const s=S(),q=Q(),n=QS().length,w=row.buzz_winner;
+  const tabs=`<nav class="tabs">${[["game","Hra"],["q","Otázky"],["set","Nastavenia"]].map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${ui.tab===k?"on":""}">${l}</button>`).join("")}</nav>`;
+  let body="";
+  if(ui.tab==="game"){
+    if(!q) body=`<div class="card"><p>Zatiaľ tu nie sú žiadne otázky.</p><button class="btn pri" data-act="seed">Načítať vzorové otázky</button><button class="btn" data-act="tab" data-v="q">Napísať vlastné</button></div>`;
+    else{
+      const rev=new Set(s.revealed),bk=bank(s);
+      body=`
+      <div class="card"><div class="row"><button class="btn" data-act="prev" ${QI()===0?"disabled":""}>‹ Späť</button><span class="grow" style="text-align:center">Otázka ${QI()+1} z ${n}</span><button class="btn pri" data-act="next" ${QI()>=n-1?"disabled":""}>Ďalšia ›</button></div>
+        <p class="qtext">${esc(q.q)}</p>
+        <div class="row"><button class="btn grow" data-act="showq">${s.showQ?"Skryť otázku na telke":"Ukázať otázku na telke"}</button><button class="btn" data-act="mult">Body ×${s.mult}</button></div></div>
+      <div class="card"><h2>Bzučiak</h2>
+        <p class="status ${w||""}">${w?`Prvý bol: ${esc(s.names[w])}`:(row.buzz_armed?"Odomknutý, čaká sa na stlačenie":"Zamknutý")}</p>
+        <div class="row"><button class="btn pri grow" data-act="arm">${w||row.buzz_armed?"Odomknúť znova":"Odomknúť bzučiak"}</button><button class="btn" data-act="lock">Zamknúť</button></div>
+        <div class="row"><span>Ručne:</span><button class="btn ta grow" data-act="manual" data-v="a">${esc(s.names.a)}</button><button class="btn tb grow" data-act="manual" data-v="b">${esc(s.names.b)}</button></div></div>
+      <div class="card"><h2>Odpovede (ťukni a odkryje sa na telke)</h2>
+        ${q.answers.map((a,i)=>`<button class="btn ans ${rev.has(i)?"on":""}" data-act="reveal" data-v="${i}"><span>${i+1}. ${esc(a.t)}</span><b>${esc(a.p)}</b></button>`).join("")}</div>
+      <div class="card"><h2>Chyby: ${s.strikes} z 3</h2>
+        <div class="row"><button class="btn bad grow" data-act="strike">✕ Chyba</button><button class="btn" data-act="wrong">✕ bez počítania</button><button class="btn" data-act="clear">Zmazať</button></div></div>
+      <div class="card"><h2>Banka: ${bk} bodov</h2>
+        ${s.awarded?`<p>Pripísané: ${esc(s.names[s.awarded])} (+${s.awardedPts})</p><div class="row"><button class="btn grow" data-act="undo">Vrátiť späť</button><button class="btn grow" data-act="all">Odkryť zvyšné odpovede</button></div>`
+        :`<div class="row"><button class="btn ta grow" data-act="award" data-v="a">Body pre: ${esc(s.names.a)}</button><button class="btn tb grow" data-act="award" data-v="b">Body pre: ${esc(s.names.b)}</button></div>`}
+        <div class="row" style="justify-content:space-between"><span class="sc" style="color:var(--a)">${esc(s.names.a)} ${s.scores.a}</span><span class="sc" style="color:var(--b)">${s.scores.b} ${esc(s.names.b)}</span></div></div>`;
+    }
+  }else if(ui.tab==="q"){
+    const d=ui.draft||(ui.draft=clone(QS()));
+    body=`<div class="card"><p>Úpravy sa prejavia až po uložení. Ukladaj pred hrou, uloženie začne aktuálne kolo odznova.</p>
+      <div class="row"><button class="btn pri grow" data-act="saveq">Uložiť otázky</button><button class="btn" data-act="sampleq">Vzorové</button></div></div>
+      ${d.map((qq,qi)=>`<div class="card"><div class="row"><h2 class="grow">Otázka ${qi+1}</h2><button class="x" data-act="delq" data-q="${qi}" aria-label="Zmazať otázku ${qi+1}">✕</button></div>
+        <input data-f="q" data-q="${qi}" value="${esc(qq.q)}" placeholder="Znenie otázky" aria-label="Znenie otázky ${qi+1}">
+        ${qq.answers.map((a,ai)=>`<div class="row" style="flex-wrap:nowrap"><input data-f="t" data-q="${qi}" data-a="${ai}" value="${esc(a.t)}" placeholder="Odpoveď" aria-label="Odpoveď ${ai+1}"><input class="p" type="number" inputmode="numeric" data-f="p" data-q="${qi}" data-a="${ai}" value="${esc(a.p)}" aria-label="Body"><button class="x" data-act="dela" data-q="${qi}" data-a="${ai}" aria-label="Zmazať odpoveď">✕</button></div>`).join("")}
+        ${qq.answers.length<8?`<button class="btn" data-act="adda" data-q="${qi}">Pridať odpoveď</button>`:""}</div>`).join("")}
+      <button class="btn" data-act="addq">Pridať otázku</button>`;
+  }else{
+    body=`<div class="card"><h2>Tímy</h2><div class="row"><label>Názov tímu A<input data-set="name" data-v="a" value="${esc(s.names.a)}"></label><label>Názov tímu B<input data-set="name" data-v="b" value="${esc(s.names.b)}"></label></div>
+      <div class="row"><label>Skóre tímu A<input type="number" inputmode="numeric" data-set="score" data-v="a" value="${s.scores.a}"></label><label>Skóre tímu B<input type="number" inputmode="numeric" data-set="score" data-v="b" value="${s.scores.b}"></label></div></div>
+      <div class="card"><h2>Nová hra</h2><p>Vynuluje skóre a vráti sa na prvú otázku. Otázky ostanú.</p><button class="btn bad" data-act="newgame">Začať novú hru</button></div>
+      <div class="card"><h2>Zariadenie</h2><p>${conn()}</p><button class="btn" data-go="home">Zmeniť zariadenie</button></div>`;
+  }
+  return `<div class="mod">${tabs}${body}</div>`;
+}
+
+function render(){
+  const s=S();
+  document.documentElement.dataset.theme=s.theme==="cisco"?"cisco":"classic";
+  const ae=document.activeElement;
+  if(view==="mod"&&ae&&ae.tagName==="INPUT"&&app.contains(ae)) return;   // neprekresľuj počas písania
+  const html=view==="tv"?tvHTML():view==="mod"?modHTML():(view==="a"||view==="b")?buzHTML(view):homeHTML();
+  app.innerHTML=themes(s)+html+(ui.toast?`<div class="toast" role="status">${esc(ui.toast)}</div>`:"");
+  document.body.style.overflow=view==="tv"?"hidden":"auto";
+}
+
+/* ---------- ovládanie ---------- */
+function resetRound(s){ s.revealed=[];s.strikes=0;s.awarded=null;s.awardedPts=0;s.showQ=true; }
+const BUZZ_OFF={buzz_armed:false,buzz_winner:null};
+const acts={
+  theme:v=>setState(s=>{s.theme=v}),
+  tab:v=>{ui.tab=v; if(v==="q") ui.draft=clone(QS()); render();},
+  full:()=>{try{document.documentElement.requestFullscreen()}catch(e){}},
+  sound:()=>{try{ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();ui.audio=true;sfx.ding()}catch(e){ui.audio=true} render();},
+  seed:()=>patch({questions:clone(SAMPLE)}),
+  prev:()=>setState(s=>{s.qi=Math.max(0,QI()-1);resetRound(s)},BUZZ_OFF),
+  next:()=>setState(s=>{s.qi=Math.min(QS().length-1,QI()+1);resetRound(s)},BUZZ_OFF),
+  showq:()=>setState(s=>{s.showQ=!s.showQ}),
+  mult:()=>setState(s=>{s.mult=s.mult>=3?1:s.mult+1}),
+  arm:()=>patch({buzz_armed:true,buzz_winner:null}),
+  lock:()=>patch(BUZZ_OFF),
+  manual:v=>patch({buzz_armed:true,buzz_winner:v}),
+  reveal:v=>setState(s=>{const i=+v;s.revealed=s.revealed.includes(i)?s.revealed.filter(x=>x!==i):[...s.revealed,i]}),
+  strike:()=>setState(s=>{s.strikes=Math.min(3,s.strikes+1);s.fx={n:s.fx.n+1,t:"strike",k:s.strikes}}),
+  wrong:()=>setState(s=>{s.fx={n:s.fx.n+1,t:"strike",k:1}}),
+  clear:()=>setState(s=>{s.strikes=0}),
+  award:v=>setState(s=>{const p=bank(s);s.scores[v]+=p;s.awarded=v;s.awardedPts=p}),
+  undo:()=>setState(s=>{if(s.awarded){s.scores[s.awarded]-=s.awardedPts;s.awarded=null;s.awardedPts=0}}),
+  all:()=>setState(s=>{const q=Q();s.revealed=q?q.answers.map((_,i)=>i):[]}),
+  newgame:()=>setState(s=>{s.scores={a:0,b:0};s.qi=0;s.mult=1;resetRound(s)},BUZZ_OFF),
+  addq:()=>{ui.draft.push({q:"",answers:[{t:"",p:0},{t:"",p:0},{t:"",p:0},{t:"",p:0}]});render()},
+  delq:(v,el)=>{ui.draft.splice(+el.dataset.q,1);render()},
+  adda:(v,el)=>{ui.draft[+el.dataset.q].answers.push({t:"",p:0});render()},
+  dela:(v,el)=>{ui.draft[+el.dataset.q].answers.splice(+el.dataset.a,1);render()},
+  sampleq:()=>{ui.draft=clone(SAMPLE);render();toast("Vzorové otázky sú načítané, ešte ich ulož")},
+  saveq:()=>{ const qs=ui.draft.map(q=>({q:q.q.trim(),answers:q.answers.filter(a=>String(a.t).trim()).map(a=>({t:String(a.t).trim(),p:Math.max(0,parseInt(a.p,10)||0)}))})).filter(q=>q.q&&q.answers.length);
+    setState(s=>{s.qi=Math.min(s.qi,Math.max(0,qs.length-1));resetRound(s)},{questions:qs,...BUZZ_OFF}); ui.draft=clone(qs); toast("Otázky sú uložené"); }
+};
+function go(v){ view=v; try{history.replaceState(null,"",v==="home"?location.pathname+location.search:"#"+v)}catch(e){} if(v!=="home") wake(); render(); }
+let lock=null;
+async function wake(){ try{ if(navigator.wakeLock) lock=await navigator.wakeLock.request("screen"); }catch(e){} }
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&view!=="home") wake(); });
+window.addEventListener("hashchange",()=>{ view=VIEWS[location.hash]||"home"; render(); });
+
+document.addEventListener("pointerdown",e=>{ const b=e.target.closest("[data-buzz]"); if(b){ e.preventDefault(); backend.buzz(b.dataset.buzz); } });
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-go]"); if(g) return go(g.dataset.go);
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
+  const f=acts[b.dataset.act]; if(f){ if(document.activeElement&&document.activeElement.blur&&b.tagName==="BUTTON"&&document.activeElement.tagName==="INPUT") document.activeElement.blur(); f(b.dataset.v,b); }
+});
+document.addEventListener("input",e=>{ const t=e.target; if(t.dataset.f&&ui.draft){ const q=ui.draft[+t.dataset.q]; if(!q) return;
+  if(t.dataset.f==="q") q.q=t.value; else q.answers[+t.dataset.a][t.dataset.f]=t.value; } });
+document.addEventListener("change",e=>{ const t=e.target; if(!t.dataset.set) return;
+  if(t.dataset.set==="name") setState(s=>{s.names[t.dataset.v]=t.value.trim()||(t.dataset.v==="a"?"Tím A":"Tím B")});
+  else setState(s=>{s.scores[t.dataset.v]=parseInt(t.value,10)||0}); });
+document.addEventListener("focusout",()=>setTimeout(render,0));
+
+if(CONFIGURED&&!window.supabase) ui.toast="Nepodarilo sa načítať knižnicu Supabase, skontroluj internet";
+render(); if(view!=="home") wake();
+</script>
+</body>
+</html>
