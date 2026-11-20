@@ -85,26 +85,55 @@ if(!DEMO && window.supabase){
   if(!DEMO) toast("Nepodarilo sa načítať knižnicu Supabase, skontroluj internet");
 }
 
-/* ---------- zvuky (len telka) ---------- */
-let ac=null;
-function tone(f,t0,d,type,g){ const o=ac.createOscillator(),G=ac.createGain(),t=ac.currentTime+t0; o.type=type||"sine"; o.frequency.value=f;
-  G.gain.setValueAtTime(g||.2,t); G.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(G).connect(ac.destination); o.start(t); o.stop(t+d+.05); }
-const sfx={ ding(){tone(880,0,.2);tone(1320,.13,.6)}, strike(){tone(140,0,.8,"sawtooth",.35);tone(147,0,.8,"square",.18)},
-  buzz(){tone(660,0,.11,"square",.3);tone(880,.11,.11,"square",.3);tone(1175,.22,.55,"square",.3);tone(587,.22,.55,"sawtooth",.15)}, win(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,"triangle",.25))} };
-const play=n=>{ if(ac&&(PAGE==="tv"||PAGE==="buzzer")) try{sfx[n]()}catch(e){} };
-function unlockAudio(){
-  try{
-    try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){}   // iPhone: hraj aj v tichom režime
-    if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); ac.onstatechange=()=>{ const r=ac.state==="running"; if(r!==ui.audio){ ui.audio=r; render(); } }; }
-    if(ac.state!=="running"){
-      ac.resume();
-      const b=ac.createBuffer(1,1,22050),src=ac.createBufferSource(); src.buffer=b; src.connect(ac.destination); src.start(0);   // iOS odomknutie
+/* ---------- zvuky ----------
+   Zvuky sa generujú priamo v prehliadači ako WAV a hrajú cez <audio>, čo ide na PC, Androide aj iPhone
+   (na iPhone aj v tichom režime). Vlastný zvuk: nahraj na GitHub priečinok "zvuky" so súbormi
+   buzz.mp3, ding.mp3, strike.mp3, win.mp3 a použije sa namiesto vygenerovaného. */
+const SR=44100;
+function synth(parts,len){
+  const n=Math.ceil(SR*len),buf=new Float32Array(n);
+  for(const P of parts){
+    const i0=Math.floor(P.t*SR),i1=Math.min(n,i0+Math.floor(P.d*SR));let ph=0;
+    for(let i=i0;i<i1;i++){
+      const t=(i-i0)/SR,k=(i-i0)/(i1-i0);
+      const f=P.f2?P.f*Math.pow(P.f2/P.f,k):P.f; ph+=f/SR; const x=ph%1;
+      let w=P.w==="square"?(x<.5?1:-1):P.w==="saw"?2*x-1:P.w==="tri"?1-4*Math.abs(x-.5):Math.sin(2*Math.PI*ph);
+      const att=Math.min(1,t/(P.a||.004));
+      const env=P.env==="flat"?(k>.88?(1-k)/.12:1):Math.exp(-t*(P.dec||6));
+      buf[i]+=w*P.g*att*env;
     }
-    ui.audio=ac.state==="running";
-  }catch(e){}
+  }
+  let pk=0; for(const v of buf) pk=Math.max(pk,Math.abs(v));
+  const out=new DataView(new ArrayBuffer(44+n*2)),wr=(o,str)=>{for(let i=0;i<str.length;i++)out.setUint8(o+i,str.charCodeAt(i))};
+  wr(0,"RIFF");out.setUint32(4,36+n*2,true);wr(8,"WAVEfmt ");out.setUint32(16,16,true);out.setUint16(20,1,true);out.setUint16(22,1,true);
+  out.setUint32(24,SR,true);out.setUint32(28,SR*2,true);out.setUint16(32,2,true);out.setUint16(34,16,true);wr(36,"data");out.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++) out.setInt16(44+i*2,Math.max(-1,Math.min(1,buf[i]/(pk||1)*.9))*32767,true);
+  return URL.createObjectURL(new Blob([out],{type:"audio/wav"}));
 }
-/* Na telefóne prehliadač povolí zvuk až pri pustení prsta (touchend/click), nie pri dotyku */
-["pointerup","touchend","click","keydown"].forEach(ev=>document.addEventListener(ev,()=>{ if(PAGE==="tv"||PAGE==="buzzer") unlockAudio(); },{capture:true,passive:true}));
+const bell=(f,t,g)=>[{f,t,d:1.6,g,dec:3},{f:f*2.76,t,d:.6,g:g*.35,dec:9},{f:f*5.4,t,d:.25,g:g*.15,dec:18}];
+const SND={
+  /* bzučiak: krátke ostré elektronické „bip-bííp“ */
+  buzz:()=>synth([{f:1046,t:0,d:.12,w:"square",g:.5,env:"flat"},{f:1396,t:.13,d:.5,w:"square",g:.5,env:"flat"},{f:698,t:.13,d:.5,w:"saw",g:.25,env:"flat"}],.7),
+  /* správna odpoveď: zvonček „ding“ */
+  ding:()=>synth([...bell(1318,0,.6),...bell(1976,.02,.25)],1.7),
+  /* chyba: tvrdý bzučiak „ENNNH“ */
+  strike:()=>synth([{f:118,t:0,d:1.05,w:"saw",g:.5,env:"flat"},{f:124,t:0,d:1.05,w:"square",g:.35,env:"flat"},{f:236,t:0,d:1.05,w:"saw",g:.25,env:"flat"}],1.1),
+  /* body pripísané: fanfára */
+  win:()=>synth([...[523,659,784].flatMap((f,i)=>[{f,t:i*.12,d:.16,w:"square",g:.3,env:"flat"},{f:f*2,t:i*.12,d:.16,w:"tri",g:.2,env:"flat"}]),
+    {f:1046,t:.36,d:.9,w:"square",g:.3,dec:2.5},{f:784,t:.36,d:.9,w:"tri",g:.3,dec:2.5},{f:523,t:.36,d:.9,w:"tri",g:.3,dec:2.5}],1.3)
+};
+const sndUrl={}; const SILENT=synth([],.05);
+for(const k in SND){ sndUrl[k]=SND[k](); fetch("zvuky/"+k+".mp3",{method:"HEAD",cache:"no-store"}).then(r=>{ if(r.ok&&!/text\/html/.test(r.headers.get("content-type")||"")) sndUrl[k]="zvuky/"+k+".mp3"; }).catch(()=>{}); }
+const pool=[0,1,2,3].map(()=>{const a=new Audio();a.preload="auto";a.setAttribute("playsinline","");return a}); let pi=0;
+function play(n){ if(!(PAGE==="tv"||PAGE==="buzzer")||!sndUrl[n]) return; const a=pool[pi++%pool.length];
+  try{ a.pause(); a.src=sndUrl[n]; a.currentTime=0; a.volume=1; const pr=a.play(); if(pr) pr.then(()=>{ if(!ui.audio){ui.audio=true;render()} }).catch(()=>{ if(ui.audio){ui.audio=false;render()} }); }catch(e){} }
+let unlocked=false;
+function unlockAudio(){
+  if(unlocked||!(PAGE==="tv"||PAGE==="buzzer")) return; unlocked=true;
+  for(const a of pool){ try{ a.src=SILENT; const pr=a.play(); if(pr) pr.then(()=>{ if(!ui.audio){ui.audio=true;render()} }).catch(()=>{ unlocked=false; }); }catch(e){ unlocked=false; } }
+}
+/* prehliadač pustí zvuk až po prvom ťuknutí/kliknutí na stránku */
+["pointerup","touchend","click","keydown"].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
 
 function effects(p){
   const a=norm(p.state),b=S();
@@ -139,7 +168,7 @@ function tvHTML(){
       <div class="strikes" aria-label="Chyby: ${s.strikes} z 3">${[0,1,2].map(i=>`<span class="${i<s.strikes?"on":""}">✕</span>`).join("")}</div>`;
   }
   const bn=ui.buzz?esc(s.names[ui.buzz]):"";
-  const tools=PAGE==="tv"?`${ui.audio?"":`<button class="snd" data-act="sound">Zapnúť zvuk</button>`}<button data-act="full">Celá obrazovka</button>`:"";
+  const tools=PAGE==="tv"?`${ui.audio?`<button data-act="testsnd">🔊 Test zvuku</button>`:`<button class="snd" data-act="sound">🔇 Zapnúť zvuk</button>`}<button data-act="full">Celá obrazovka</button>`:"";
   return `<div class="tv ${PAGE}">
     <header class="bar">${n?`<span>Otázka ${QI()+1} z ${n}</span>`:""}${conn()}${tools}</header>
     ${team("a")}<main>${main}</main>${team("b")}
@@ -159,7 +188,7 @@ function buzzerHTML(){
   const msg={won:"Ste prví!",lost:"Prvý bol súper",armed:"Stlač!",locked:"Čakaj na moderátora"}[st];
   return `<div class="buz ${t} ${st}"><div class="bname">${esc(s.names[t])}</div>
     <button class="big" data-buzz="${t}" aria-live="polite">${msg}</button>
-    <small>${conn()}</small><button class="back" data-act="testsnd">Test zvuku</button><button class="back" data-act="leave">Odhlásiť bzučiak</button></div>`;
+    <small>${conn()}</small><button class="back" data-act="testsnd">${ui.audio?"🔊":"🔇"} Test zvuku</button><button class="back" data-act="leave">Odhlásiť bzučiak</button></div>`;
 }
 
 function adminHTML(){
@@ -253,7 +282,7 @@ const adminActs={
 const acts={
   theme:v=>{ if(PAGE==="admin"&&adminOk) setState(s=>{s.theme=v}); else { ui.localTheme=v; render(); } },
   full:()=>{try{document.documentElement.requestFullscreen()}catch(e){}},
-  sound:()=>{ unlockAudio(); play("ding"); render(); },
+  sound:()=>{ unlockAudio(); play("ding"); },
   testsnd:()=>{ unlockAudio(); play("buzz"); },
   login:async()=>{ const pass=ui.passInput; if(!pass||ui.busy) return; ui.busy=true;
     try{ const r=await backend.login(pass); if(r&&r.ok){ adminPass=pass; adminOk=true; ui.pin=r.pin||""; ui.passInput=""; SS.set("pp-admin",pass); wake(); } else toast("Nesprávne heslo"); }
@@ -272,7 +301,7 @@ let wl=null;
 async function wake(){ try{ if(navigator.wakeLock) wl=await navigator.wakeLock.request("screen"); }catch(e){} }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) wake(); });
 
-document.addEventListener("pointerdown",e=>{ if(PAGE==="tv"||PAGE==="buzzer"){ const was=ui.audio; unlockAudio(); if(!was&&PAGE==="tv") setTimeout(render,0); }
+document.addEventListener("pointerdown",e=>{ unlockAudio();
   if(e.target.closest("[data-buzz]")){ e.preventDefault(); doBuzz(); } });
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
