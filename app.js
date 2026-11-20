@@ -90,8 +90,9 @@ let ac=null;
 function tone(f,t0,d,type,g){ const o=ac.createOscillator(),G=ac.createGain(),t=ac.currentTime+t0; o.type=type||"sine"; o.frequency.value=f;
   G.gain.setValueAtTime(g||.2,t); G.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(G).connect(ac.destination); o.start(t); o.stop(t+d+.05); }
 const sfx={ ding(){tone(880,0,.2);tone(1320,.13,.6)}, strike(){tone(140,0,.8,"sawtooth",.35);tone(147,0,.8,"square",.18)},
-  buzz(){tone(520,0,.13,"square",.22);tone(780,.14,.4,"square",.22)}, win(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,"triangle",.25))} };
-const play=n=>{ if(ac&&PAGE==="tv") try{sfx[n]()}catch(e){} };
+  buzz(){tone(660,0,.11,"square",.3);tone(880,.11,.11,"square",.3);tone(1175,.22,.55,"square",.3);tone(587,.22,.55,"sawtooth",.15)}, win(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,"triangle",.25))} };
+const play=n=>{ if(ac&&(PAGE==="tv"||PAGE==="buzzer")) try{sfx[n]()}catch(e){} };
+function unlockAudio(){ try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state!=="running") ac.resume(); ui.audio=true; }catch(e){ ui.audio=true; } }
 
 function effects(p){
   const a=norm(p.state),b=S();
@@ -102,7 +103,7 @@ function effects(p){
     if(!p.buzz_winner&&row.buzz_winner){ ui.buzz=row.buzz_winner; play("buzz"); clearTimeout(ui.t2); ui.t2=setTimeout(()=>{ui.buzz=null;render()},2300); }
     if(!a.awarded&&b.awarded) play("win");
   }
-  if(PAGE==="buzzer"&&bz&&!p.buzz_winner&&row.buzz_winner===bz.team){ try{navigator.vibrate&&navigator.vibrate(250)}catch(e){} }
+  if(PAGE==="buzzer"&&bz&&!p.buzz_winner&&row.buzz_winner===bz.team){ play("buzz"); try{navigator.vibrate&&navigator.vibrate(250)}catch(e){} }
 }
 
 /* ---------- vykreslenie ---------- */
@@ -240,7 +241,7 @@ const adminActs={
 const acts={
   theme:v=>{ if(PAGE==="admin"&&adminOk) setState(s=>{s.theme=v}); else { ui.localTheme=v; render(); } },
   full:()=>{try{document.documentElement.requestFullscreen()}catch(e){}},
-  sound:()=>{try{ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();ui.audio=true;sfx.ding()}catch(e){ui.audio=true} render();},
+  sound:()=>{ unlockAudio(); play("ding"); render(); },
   login:async()=>{ const pass=ui.passInput; if(!pass||ui.busy) return; ui.busy=true;
     try{ const r=await backend.login(pass); if(r&&r.ok){ adminPass=pass; adminOk=true; ui.pin=r.pin||""; ui.passInput=""; SS.set("pp-admin",pass); wake(); } else toast("Nesprávne heslo"); }
     catch(e){ toast("Prihlásenie zlyhalo. Je v Supabase spustený supabase.sql?"); }
@@ -258,7 +259,8 @@ let wl=null;
 async function wake(){ try{ if(navigator.wakeLock) wl=await navigator.wakeLock.request("screen"); }catch(e){} }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) wake(); });
 
-document.addEventListener("pointerdown",e=>{ if(e.target.closest("[data-buzz]")){ e.preventDefault(); doBuzz(); } });
+document.addEventListener("pointerdown",e=>{ if(PAGE==="tv"||PAGE==="buzzer"){ const was=ui.audio; unlockAudio(); if(!was&&PAGE==="tv") setTimeout(render,0); }
+  if(e.target.closest("[data-buzz]")){ e.preventDefault(); doBuzz(); } });
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
   const name=b.dataset.act, f=acts[name]||(PAGE==="admin"&&adminOk?adminActs[name]:null); if(!f) return;
