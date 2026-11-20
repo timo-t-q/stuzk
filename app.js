@@ -92,7 +92,19 @@ function tone(f,t0,d,type,g){ const o=ac.createOscillator(),G=ac.createGain(),t=
 const sfx={ ding(){tone(880,0,.2);tone(1320,.13,.6)}, strike(){tone(140,0,.8,"sawtooth",.35);tone(147,0,.8,"square",.18)},
   buzz(){tone(660,0,.11,"square",.3);tone(880,.11,.11,"square",.3);tone(1175,.22,.55,"square",.3);tone(587,.22,.55,"sawtooth",.15)}, win(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,"triangle",.25))} };
 const play=n=>{ if(ac&&(PAGE==="tv"||PAGE==="buzzer")) try{sfx[n]()}catch(e){} };
-function unlockAudio(){ try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state!=="running") ac.resume(); ui.audio=true; }catch(e){ ui.audio=true; } }
+function unlockAudio(){
+  try{
+    try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){}   // iPhone: hraj aj v tichom režime
+    if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); ac.onstatechange=()=>{ const r=ac.state==="running"; if(r!==ui.audio){ ui.audio=r; render(); } }; }
+    if(ac.state!=="running"){
+      ac.resume();
+      const b=ac.createBuffer(1,1,22050),src=ac.createBufferSource(); src.buffer=b; src.connect(ac.destination); src.start(0);   // iOS odomknutie
+    }
+    ui.audio=ac.state==="running";
+  }catch(e){}
+}
+/* Na telefóne prehliadač povolí zvuk až pri pustení prsta (touchend/click), nie pri dotyku */
+["pointerup","touchend","click","keydown"].forEach(ev=>document.addEventListener(ev,()=>{ if(PAGE==="tv"||PAGE==="buzzer") unlockAudio(); },{capture:true,passive:true}));
 
 function effects(p){
   const a=norm(p.state),b=S();
@@ -147,7 +159,7 @@ function buzzerHTML(){
   const msg={won:"Ste prví!",lost:"Prvý bol súper",armed:"Stlač!",locked:"Čakaj na moderátora"}[st];
   return `<div class="buz ${t} ${st}"><div class="bname">${esc(s.names[t])}</div>
     <button class="big" data-buzz="${t}" aria-live="polite">${msg}</button>
-    <small>${conn()}</small><button class="back" data-act="leave">Odhlásiť bzučiak</button></div>`;
+    <small>${conn()}</small><button class="back" data-act="testsnd">Test zvuku</button><button class="back" data-act="leave">Odhlásiť bzučiak</button></div>`;
 }
 
 function adminHTML(){
@@ -242,6 +254,7 @@ const acts={
   theme:v=>{ if(PAGE==="admin"&&adminOk) setState(s=>{s.theme=v}); else { ui.localTheme=v; render(); } },
   full:()=>{try{document.documentElement.requestFullscreen()}catch(e){}},
   sound:()=>{ unlockAudio(); play("ding"); render(); },
+  testsnd:()=>{ unlockAudio(); play("buzz"); },
   login:async()=>{ const pass=ui.passInput; if(!pass||ui.busy) return; ui.busy=true;
     try{ const r=await backend.login(pass); if(r&&r.ok){ adminPass=pass; adminOk=true; ui.pin=r.pin||""; ui.passInput=""; SS.set("pp-admin",pass); wake(); } else toast("Nesprávne heslo"); }
     catch(e){ toast("Prihlásenie zlyhalo. Je v Supabase spustený supabase.sql?"); }
